@@ -3,7 +3,7 @@ import { ffmpegBin } from "@/lib/ffmpeg-path";
 
 /** Resolve only after the child closes, so cancelled attempts cannot keep writing output. */
 export function runTranscriptFfmpeg(args: string[], options: {
-  duration: number; timeoutMs: number; signal?: AbortSignal; onProgress?: (value: number) => void;
+  duration: number; timeoutMs: number; signal?: AbortSignal; onProgress?: (value: number) => void; timeoutMessage?: string;
 }): Promise<void> {
   return new Promise((resolve, reject) => {
     if (options.signal?.aborted) { reject(options.signal.reason); return; }
@@ -39,7 +39,7 @@ export function runTranscriptFfmpeg(args: string[], options: {
     child.once("close", (code) => {
       clean();
       if (options.signal?.aborted) reject(options.signal.reason);
-      else if (timedOut) reject(new Error("文字剪辑超时，请缩短素材后重试"));
+      else if (timedOut) reject(new Error(options.timeoutMessage ?? "文字剪辑超时，请缩短素材后重试"));
       else if (code !== 0) reject(new Error(/no space left|ENOSPC/i.test(stderr) ? "磁盘空间不足，无法输出剪辑版本" : `FFmpeg render failed (${code}): ${stderr.slice(-1500)}`));
       else resolve();
     });
