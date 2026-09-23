@@ -868,9 +868,14 @@ export default function TranscriptPage() {
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{t("silenceChoose")}</p>
                 {transcript.silenceRanges.map((range, index) => <label key={`${range.start}-${range.end}-${index}`} className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs hover:bg-muted/40">
                   <input type="checkbox" className="h-3.5 w-3.5 accent-primary" checked={removeSilence && silenceSelected(range)} onChange={(event) => toggleSilenceRange(range, event.target.checked)} />
-                  <span className="tabular-nums">{formatDuration(range.start)} – {formatDuration(range.end)}</span>
+                  <span className="tabular-nums">{range.start.toFixed(1)}s – {range.end.toFixed(1)}s</span>
                   <span className="ml-auto text-muted-foreground">{formatDuration(range.end - range.start)}</span>
+                  <button type="button" className="rounded px-1.5 py-1 text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" onClick={(event) => { event.preventDefault(); seekTo(range.start); }} title={t("silencePreview")} aria-label={t("silencePreview")}>{t("silencePreview")}</button>
                 </label>)}
+                <label className="mt-2 block px-2 pt-1 text-[11px] text-muted-foreground">
+                  <span className="flex items-center justify-between gap-2"><span>{t("silencePadding")}</span><span className="tabular-nums text-foreground">{plan.silencePaddingMs}ms</span></span>
+                  <input type="range" min="0" max="500" step="10" value={plan.silencePaddingMs} onChange={(event) => commitPlan({ ...plan, silencePaddingMs: Number(event.target.value) })} className="mt-2 w-full accent-primary" disabled={!removeSilence} />
+                </label>
               </div>}
             </div>
             <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-xl border border-border/50 bg-background/30 p-3">
