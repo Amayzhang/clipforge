@@ -164,7 +164,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         if (search.cands.length === 0 && autoMode && mediaType !== "image") {
           search = await searchShotCandidates(query, source, { ...searchOpts, mediaType: "image" }, { subjectEn });
         }
-        return { shot, query, cands: search.cands, fallbackLevel: search.fallbackLevel };
+        // Do not persist universal filler (abstract background / lifestyle) as if it matched
+        // the script. The caller reports the shot for manual replacement instead.
+        return {
+          shot,
+          query,
+          cands: search.fallbackLevel === "universal" ? [] : search.cands,
+          fallbackLevel: search.fallbackLevel,
+        };
       } catch (e) {
         return { shot, query, cands: [], error: e instanceof Error ? e.message : String(e) };
       }
@@ -261,6 +268,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const filled = all.filter((r) => r.ok).length;
     const sameSourceHits = all.filter((r) => r.sameSource).length;
     const universalFallbacks = all.filter((r) => r.warning === "stock_universal_fallback").map((r) => r.shotId);
+    const unmatchedShots = all.filter((r) => !r.ok && r.reason === "no asset found").map((r) => r.shotId);
     return NextResponse.json({
       projectId: id,
       scriptId: script.id,
@@ -269,6 +277,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       semantic: semanticOk,
       sameSourceHits,
       universalFallbacks,
+      unmatchedShots,
       results: all,
     });
   }
@@ -328,5 +337,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const filled = results.filter((r) => r.ok).length;
   const sameSourceHits = results.filter((r) => r.sameSource).length;
   const universalFallbacks = results.filter((r) => r.warning === "stock_universal_fallback").map((r) => r.shotId);
-  return NextResponse.json({ projectId: id, scriptId: script.id, total: shots.length, filled, sameSourceHits, universalFallbacks, results });
+  const unmatchedShots = results.filter((r) => !r.ok && r.reason === "no asset found").map((r) => r.shotId);
+  return NextResponse.json({ projectId: id, scriptId: script.id, total: shots.length, filled, sameSourceHits, universalFallbacks, unmatchedShots, results });
 }

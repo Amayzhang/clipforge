@@ -70,6 +70,10 @@ function toImageSize(width?: number, height?: number): string {
   return '2K'
 }
 
+function finiteInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && Number.isFinite(value) ? value : undefined
+}
+
 export class VolcEngineProvider extends BaseProvider {
   readonly name = 'volcengine'
   readonly displayName = '火山引擎'
@@ -90,6 +94,18 @@ export class VolcEngineProvider extends BaseProvider {
    * Generate an image (Seedream — synchronous, no polling needed)
    */
   async generateImage(options: ImageOptions): Promise<ImageResult> {
+    // Older persisted settings occasionally contain `seed: ""`. Ark decodes seed as int64
+    // and returns a cryptic 400 when that empty string is forwarded, so only accept real numbers.
+    const extra = { ...(options.extra ?? {}) }
+    const seed = finiteInteger(options.seed) ?? finiteInteger(extra.seed)
+    delete extra.seed
+    delete extra.image
+    const referenceImages = (options.referenceImageUrls ?? []).filter(
+      (url): url is string => typeof url === 'string' && url.trim().length > 0
+    )
+    const image = referenceImages.length > 1
+      ? referenceImages
+      : referenceImages[0] ?? options.referenceImageUrl
     const body: Record<string, unknown> = {
       model: options.modelId,
       prompt: options.prompt,
@@ -97,8 +113,9 @@ export class VolcEngineProvider extends BaseProvider {
       response_format: 'url',
       watermark: false,
       // image-to-image / edit: pass image (URL or base64)
-      ...(options.referenceImageUrl && { image: options.referenceImageUrl }),
-      ...options.extra,
+      ...(image && { image }),
+      ...(seed != null && { seed }),
+      ...extra,
     }
 
     const resp = await this.request<ArkImageResponse>('/images/generations', {
